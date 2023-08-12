@@ -1,0 +1,152 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+GITHUB_REPO_NAME="https://github.com/mdb1/fastlane-example"
+GIT_DEFAULT_BRANCH="main"
+
+platform :ios do
+  desc "Description of what the lane does"
+  lane :custom_lane do
+    # add actions here: https://docs.fastlane.tools/actions
+  end
+
+  desc 'Prompt information and then create a Pull Request on Github'
+  desc 'Options:'
+  desc 'draft --- Determines if the PR is a draft or not (Default: false).'
+  lane :pr do |options|
+    # Check --draft param
+    isDraft = options[:draft].nil? ? false : options[:draft]
+    # Ask for the PR Title
+    UI.message("Enter the PR title:")
+    pr_title = STDIN.gets.chomp
+    # Ask the user for the PR description
+    pr_body = prompt_pr_description
+
+    # Create the PR on GitHub.
+    create_pull_request(
+      repo: GITHUB_REPO_NAME,
+      title: pr_title,
+      body: pr_body,
+      draft: isDraft,
+      base: GIT_DEFAULT_BRANCH
+    )
+
+    # Capture the PR URL
+    pr_url = lane_context[SharedValues::CREATE_PULL_REQUEST_HTML_URL]
+
+    # Open the pull request URL in the default web browser
+    sh("open #{pr_url}")
+  end
+
+  # Prompts information about a PR's description
+  def prompt_pr_description
+    pr_body = ""
+  
+    # Ask the user for the PR body
+    UI.message("Enter the PR body (multiline text, press Ctrl+D on an empty line to finish):")
+    while (line = STDIN.gets)
+      pr_body += line
+    end
+
+    # Ask the user for the screenshot option and generate the markdown table
+    screenshots_table = prompt_screenshots_table
+  
+    # Format the PR body as Markdown text
+    markdown_text = <<~MARKDOWN
+      ## Description
+      #{pr_body}
+
+      #{screenshots_table}
+    MARKDOWN
+  
+    return markdown_text
+  end
+
+  # Let the user select an option to generate a markdown table for screenshots.
+  def prompt_screenshots_table
+    table_options = [
+      "No screenshots",
+      "Table: 1 column 1 row",
+      "Table: 2 columns 1 row",
+      "Table: 2 columns 2 rows",
+      "Table: 3 columns 1 row",
+      "Table: 3 columns 2 rows"
+    ]
+
+    # Ask the user for the screenshot option
+    screenshot_option = nil
+    loop do
+      UI.message("Choose the screenshot option:")
+      table_options.each_with_index { |option, index| UI.message("#{index + 1}. #{option}") }
+
+      choice = UI.input("Enter the option number (1-#{table_options.size}):")
+      choice_index = choice.to_i - 1
+
+      if choice_index >= 0 && choice_index < table_options.size
+        screenshot_option = table_options[choice_index]
+        break
+      else
+        UI.error("Invalid option. Please enter a valid option number.")
+      end
+    end
+  
+    # Generate the markdown table based on the selected option
+    case screenshot_option
+    when "Table: 1 column 1 row"
+      markdown_table = <<~MARKDOWN
+        ## Screenshots
+        | Title 1 |
+        | - |
+        | IMG 1 |
+      MARKDOWN
+    when "Table: 2 columns 1 row"
+      markdown_table = <<~MARKDOWN
+        ## Screenshots
+        | Title 1 | Title 2 |
+        | - | - |
+        | IMG 1 | IMG 2 |
+      MARKDOWN
+    when "Table: 2 columns 2 rows"
+      markdown_table = <<~MARKDOWN
+        ## Screenshots
+        | Title 1 | Title 2 |
+        | - | - |
+        | IMG 1 | IMG 2 |
+        | IMG 3 | IMG 4 |
+      MARKDOWN
+    when "Table: 3 columns 1 row"
+      markdown_table = <<~MARKDOWN
+        ## Screenshots
+        | Title 1 | Title 2 | Title 3 |
+        | - | - | - |
+        | IMG 1 | IMG 2 | IMG 3 |
+      MARKDOWN
+    when "Table: 3 columns 2 rows"
+      markdown_table = <<~MARKDOWN
+        ## Screenshots
+        | Title 1 | Title 2 | Title 3 |
+        | - | - | - |
+        | IMG 1 | IMG 2 | IMG 3 |
+        | IMG 4 | IMG 5 | IMG 6 |
+      MARKDOWN
+    else
+      markdown_table = ""
+    end
+  
+    return markdown_table
+  end
+end
